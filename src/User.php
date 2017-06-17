@@ -4,6 +4,7 @@ namespace mikk150\jwt;
 
 use yii\base\Component;
 use yii\base\InvalidConfigException;
+use yii\helpers\ArrayHelper;
 use Jose\Factory\JWKFactory;
 use Jose\Factory\CheckerManagerFactory;
 use Jose\Factory\JWSFactory;
@@ -22,6 +23,9 @@ class User extends \yii\web\User
     public $jwtConfig;
 
     public $signatureAlgorithms;
+
+    public $idParam = 'uid';
+    public $authTimeoutParam = 'exp';
 
     public function init()
     {
@@ -75,7 +79,7 @@ class User extends \yii\web\User
      * This method is used when [[enableAutoLogin]] is true.
      * It saves [[id]], [[IdentityInterface::getAuthKey()|auth key]], and the duration of cookie-based login
      * information in the cookie.
-     * @param IdentityInterface $identity
+     * @param \yii\web\IdentityInterface|ClaimIdentityInterface $identity
      * @param int $duration number of seconds that the user can remain in logged-in status.
      * @see loginByCookie()
      */
@@ -84,9 +88,19 @@ class User extends \yii\web\User
         $cookie = new SelfSignedCookie($this->identityCookie);
         
         $claim = [];
+
+
         $claim[$this->idParam] = $identity->getId();
         $claim[$this->authTimeoutParam] = time() + $duration;
-    
+        $claim['jti'] = Yii::$app->security->generateRandomString();
+        
+        if ($identity instanceof ClaimIdentityInterface) {
+            /**
+             * @var $identity ClaimIdentityInterface
+             */
+            $claim = ArrayHelper::merge($identity->getClaims(), $claim);
+        }
+
         $cookie->value = $this->getToken($claim);
         $cookie->expire = time() + $duration;
         Yii::$app->getResponse()->getCookies()->add($cookie);
@@ -115,19 +129,21 @@ class User extends \yii\web\User
     protected function getIdentityAndDurationFromCookie()
     {
         $value = Yii::$app->getRequest()->getCookies()->getValue($this->identityCookie['name']);
+        $data = $this->getClaim($value);
         if ($value === null) {
             return null;
         }
-        $data = $this->getClaim($value);
         if (isset($data[$this->idParam]) && isset($data[$this->authTimeoutParam])) {
             $class = $this->identityClass;
             /* @var $identity IdentityInterface */
             $identity = $class::findIdentity($data[$this->idParam]);
             if ($identity !== null) {
+                $this->setClaims($data);
                 return ['identity' => $identity, 'duration' => $data[$this->authTimeoutParam]];
             }
         }
     }
+
 
     protected function getClaim($token)
     {
@@ -139,5 +155,16 @@ class User extends \yii\web\User
             return $jws->getPayload();
         } catch (\InvalidArgumentException $e) {
         }
+    }
+
+    private $_claims = [];
+    protected function setClaims($claims)
+    {
+        $this->_claims = $claims;
+    }
+
+    public function getClaims()
+    {
+        return $this->_claims;
     }
 }
