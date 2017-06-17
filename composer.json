@@ -1,0 +1,16 @@
+{
+    "name": "mikk150/yii2-jwt-user",
+    "require": {
+        "yiisoft/yii2": "^2.0",
+        "spomky-labs/jose": "^6.1.0"
+    },
+    "require-dev": {
+        "codeception/base": "^2.2.3",
+        "codeception/verify": "~0.3.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "mikk150\\jwt\\": "src/"
+        }
+    }
+}
