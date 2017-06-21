@@ -50,7 +50,7 @@ class User extends \yii\web\User
     {
         $value = Yii::$app->getRequest()->getCookies()->getValue($this->identityCookie['name']);
         $data = $this->getClaim($value);
-        if ($value === null) {
+        if ($data === null) {
             return null;
         }
 
