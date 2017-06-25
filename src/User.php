@@ -26,6 +26,7 @@ class User extends \yii\web\User
 
     public $idParam = 'uid';
     public $authTimeoutParam = 'exp';
+    public $durationClaim = 'dur';
 
     public function init()
     {
@@ -86,14 +87,15 @@ class User extends \yii\web\User
     protected function sendIdentityCookie($identity, $duration)
     {
         $cookie = new SelfSignedCookie($this->identityCookie);
-        
+
         $claim = [];
 
 
         $claim[$this->idParam] = $identity->getId();
         $claim[$this->authTimeoutParam] = time() + $duration;
+        $claim[$this->durationClaim] = $duration;
         $claim['jti'] = Yii::$app->security->generateRandomString();
-        
+
         if ($identity instanceof ClaimIdentityInterface) {
             /**
              * @var $identity ClaimIdentityInterface
@@ -139,7 +141,7 @@ class User extends \yii\web\User
             $identity = $class::findIdentity($data[$this->idParam]);
             if ($identity !== null) {
                 $this->setClaims($data);
-                return ['identity' => $identity, 'duration' => $data[$this->authTimeoutParam]];
+                return ['identity' => $identity, 'duration' => $data[$this->durationClaim]];
             }
         }
     }
