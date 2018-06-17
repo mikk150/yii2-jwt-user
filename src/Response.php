@@ -17,14 +17,8 @@ class Response extends \yii\web\Response
      */
     public function clear()
     {
-        $this->_headers = null;
         $this->_cookies = null;
-        $this->_statusCode = 200;
-        $this->statusText = 'OK';
-        $this->data = null;
-        $this->stream = null;
-        $this->content = null;
-        $this->isSent = false;
+        parent::clear();
     }
 
     /**
