@@ -4,7 +4,8 @@ namespace mikk150\jwt;
 
 use yii\web\Cookie;
 use yii\base\InvalidConfigException;
-use Yii;
+use yii\base\Security;
+use yii\di\Instance;
 
 /**
 *
@@ -13,11 +14,45 @@ class Request extends \yii\web\Request
 {
     public $selfSignedCookies = [];
 
+    private $_security = 'security';
+    public function setSecurity($security)
+    {
+        $this->_security = $security;
+    }
+
+    /**
+     * @return security
+     */
+    public function getSecurity()
+    {
+        if (!($this->_security instanceof Security)) {
+            $this->_security = Instance::ensure($this->_security, Security::class);
+        }
+        return $this->_security;
+    }
+
+    private $_user = 'user';
+    public function setUser($user)
+    {
+        $this->_user = $user;
+    }
+
+    /**
+     * @return User
+     */
+    public function getUser()
+    {
+        if (!($this->_user instanceof User)) {
+            $this->_user = Instance::ensure($this->_user, User::class);
+        }
+        return $this->_user;
+    }
+
     public function init()
     {
         parent::init();
 
-        $this->selfSignedCookies[] = Yii::$app->getUser()->identityCookie['name'];
+        $this->selfSignedCookies[] = $this->getUser()->identityCookie['name'];
     }
 
     /**
@@ -37,7 +72,7 @@ class Request extends \yii\web\Request
                     continue;
                 }
                 if (!in_array($name, $this->selfSignedCookies)) {
-                    $data = Yii::$app->getSecurity()->validateData($value, $this->cookieValidationKey);
+                    $data = $this->getSecurity()->validateData($value, $this->cookieValidationKey);
                     if ($data === false) {
                         continue;
                     }

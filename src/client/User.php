@@ -2,17 +2,18 @@
 
 namespace mikk150\jwt\client;
 
-use mikk150\jwt\Response;
+use Jose\Component\Core\AlgorithmManager;
+use Jose\Component\Core\JWK;
+use Jose\Component\Signature\JWSLoader;
+use Jose\Component\Signature\JWSVerifier;
+use Jose\Component\Signature\Serializer\CompactSerializer;
+use Jose\Component\Signature\Serializer\JWSSerializerManager;
 use mikk150\jwt\Request;
+use mikk150\jwt\Response;
 use yii\base\InvalidConfigException;
-use Jose\Factory\JWKFactory;
-use Jose\Factory\CheckerManagerFactory;
-use Jose\Factory\JWSFactory;
-use Jose\Loader;
-use Jose\JWTLoader;
-use Jose\JWTCreator;
-use Jose\Signer;
 use Yii;
+use yii\di\Instance;
+use yii\helpers\Json;
 
 class User extends \yii\web\User
 {
@@ -37,19 +38,32 @@ class User extends \yii\web\User
             throw new InvalidConfigException('User::identityCookie must contain the "name" element.');
         }
 
-        if (!(Yii::$app->getResponse() instanceof Response)) {
-            throw new InvalidConfigException('application response object must be ' . Response::className());
-        }
-
         if (!$this->jwkConfig || !$this->jwtConfig || !$this->signatureAlgorithms) {
             throw new InvalidConfigException('JOSE tokens are not configured');
         }
     }
 
+    private $_request = 'request';
+    public function setRequest($request)
+    {
+        $this->_request = $request;
+    }
+
+    /**
+     * @return Request
+     */
+    public function getRequest()
+    {
+        if (!($this->_request instanceof Request)) {
+            $this->_request = Instance::ensure($this->_request, Request::class);
+        }
+        return $this->_request;
+    }
+
     public function getIdentity($autoRenew = false)
     {
-        $value = Yii::$app->getRequest()->getCookies()->getValue($this->identityCookie['name']);
-        $data = $this->getClaim($value);
+        $value = $this->getRequest()->getCookies()->getValue($this->identityCookie['name']);
+        $data = $this->getClaimFromToken($value);
         if ($data === null) {
             return null;
         }
@@ -57,15 +71,27 @@ class User extends \yii\web\User
         return new $this->identityClass($data);
     }
 
-    protected function getClaim($token)
+    protected function getClaimFromToken(string $token)
     {
-        $jwk = JWKFactory::createFromValues($this->jwkConfig);
-        $loader = new Loader();
+        $serializerManager = new JWSSerializerManager([
+            new CompactSerializer(),
+        ]);
+        $algorithmManager = new AlgorithmManager($this->signatureAlgorithms);
 
-        try {
-            $jws = $loader->loadAndVerifySignatureUsingKey($token, $jwk, $this->signatureAlgorithms);
-            return $jws->getPayload();
-        } catch (\InvalidArgumentException $e) {
-        }
+
+        $jwsVerifier = new JWSVerifier(
+            $algorithmManager
+        );
+
+        $jwk = new JWK($this->jwkConfig);
+
+        $jwsLoader = new JWSLoader(
+            $serializerManager,
+            $jwsVerifier,
+            null
+        );
+
+        $jws = $jwsLoader->loadAndVerifyWithKey($token, $jwk, $signature);
+        return Json::decode($jws->getPayload());
     }
 }

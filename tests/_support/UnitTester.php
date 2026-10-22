@@ -1,5 +1,6 @@
 <?php
-namespace mikk150\jwt\tests;
+
+namespace tests;
 
 /**
  * Inherited Methods

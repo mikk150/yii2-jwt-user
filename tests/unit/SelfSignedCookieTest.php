@@ -1,9 +1,9 @@
 <?php
 
-namespace mikk150\jwt\tests;
+namespace tests\unit;
 
+use mikk150\jwt\Response;
 use mikk150\jwt\SelfSignedCookie;
-use Yii;
 
 class SelfSignedCookieTest extends \Codeception\Test\Unit
 {
@@ -32,10 +32,13 @@ class SelfSignedCookieTest extends \Codeception\Test\Unit
             'secure' => false,
             'httpOnly' => true,
         ]);
+
         /**
          * @var        \mikk150\jwt\Response
          */
-        $response = Yii::$app->response;
+        $response = new Response([
+            'charset' => 'utf8'
+        ]);
         $response->cookies->add($cookie);
 
         $this->assertContains($cookie, $response->cookies);
