@@ -2,13 +2,12 @@
 
 namespace mikk150\jwt;
 
+use Exception;
 use Jose\Component\Core\AlgorithmManager;
 use Jose\Component\Core\JWK;
 use Jose\Component\Signature\JWSBuilder;
-use Jose\Component\Signature\JWSLoader;
-use Jose\Component\Signature\JWSVerifier;
 use Jose\Component\Signature\Serializer\CompactSerializer;
-use Jose\Component\Signature\Serializer\JWSSerializerManager;
+use Jose\Component\Core\Exception\InvalidTokenException;
 use yii\base\InvalidConfigException;
 use yii\helpers\ArrayHelper;
 use Yii;
@@ -190,17 +189,32 @@ class User extends BaseUser
     protected function getIdentityAndDurationFromCookie()
     {
         $value = $this->getRequest()->getCookies()->getValue($this->identityCookie['name']);
-        $data = $this->getClaimFromToken($value);
-        if ($data === null) {
-            return null;
-        }
-        if (isset($data[$this->idParam]) && isset($data[$this->authTimeoutParam])) {
-            $class = $this->identityClass;
-            /* @var $identity IdentityInterface */
-            $identity = $class::findIdentity($data[$this->idParam]);
-            if ($identity !== null) {
-                $this->setClaims($data);
-                return ['identity' => $identity, 'duration' => $data[$this->durationClaim]];
+        if (is_string($value)) {
+            try {
+                $data = $this->getClaimFromToken($value);
+                if ($data !== null) {
+                    if (isset($data[$this->idParam]) && isset($data[$this->authTimeoutParam])) {
+                        $class = $this->identityClass;
+                        /* @var $identity IdentityInterface */
+                        $identity = $class::findIdentity($data[$this->idParam]);
+                        if ($identity !== null) {
+                            $this->setClaims($data);
+                            return ['identity' => $identity, 'duration' => $data[$this->durationClaim]];
+                        }
+                    }
+                }
+            } catch (InvalidTokenException $ex) {
+                return null;
+            } catch (Exception $ex) {
+                /**
+                 * It's stupid, but they really do not have any way to specifically catch this exception
+                 * as they do not have a separate exception class to it before 4.3.0 (Which is not even out)
+                 */
+
+                if ($ex::class === Exception::class && $ex->getMessage() === 'Unable to load and verify the token.') {
+                    return null;
+                }
+                throw $ex;
             }
         }
     }

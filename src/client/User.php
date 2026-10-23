@@ -2,19 +2,10 @@
 
 namespace mikk150\jwt\client;
 
-use Jose\Component\Core\AlgorithmManager;
-use Jose\Component\Core\JWK;
-use Jose\Component\Signature\JWSLoader;
-use Jose\Component\Signature\JWSVerifier;
-use Jose\Component\Signature\Serializer\CompactSerializer;
-use Jose\Component\Signature\Serializer\JWSSerializerManager;
+use Exception;
 use mikk150\jwt\BaseUser;
-use mikk150\jwt\Request;
-use mikk150\jwt\Response;
 use yii\base\InvalidConfigException;
-use Yii;
-use yii\di\Instance;
-use yii\helpers\Json;
+use Jose\Component\Core\Exception\InvalidTokenException;
 
 class User extends BaseUser
 {
@@ -39,11 +30,25 @@ class User extends BaseUser
     public function getIdentity($autoRenew = false)
     {
         $value = $this->getRequest()->getCookies()->getValue($this->identityCookie['name']);
-        $data = $this->getClaimFromToken($value);
-        if ($data === null) {
-            return null;
-        }
+        if (is_string($value)) {
+            try {
+                $data = $this->getClaimFromToken($value);
+                if ($data !== null) {
+                    return new $this->identityClass($data);
+                }
+            } catch (InvalidTokenException $ex) {
+                return null;
+            } catch (Exception $ex) {
+                /**
+                 * It's stupid, but they really do not have any way to specifically catch this exception
+                 * as they do not have a separate exception class to it before 4.3.0 (Which is not even out)
+                 */
 
-        return new $this->identityClass($data);
+                if ($ex::class === Exception::class && $ex->getMessage() === 'Unable to load and verify the token.') {
+                    return null;
+                }
+                throw $ex;
+            }
+        }
     }
 }

@@ -2,7 +2,7 @@
     "name": "mikk150/yii2-jwt-user",
     "require": {
         "yiisoft/yii2": "^2.0",
-        "web-token/jwt-framework": "^3.0.0"
+        "web-token/jwt-framework": "^3.0.0|^4.0.0"
     },
     "require-dev": {
         "codeception/codeception": "^5.0.0 || ^4.0",

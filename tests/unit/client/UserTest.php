@@ -8,11 +8,13 @@ use Jose\Component\Signature\Algorithm\HS256;
 use mikk150\jwt\client\User;
 use mikk150\jwt\Request;
 use mikk150\jwt\Response;
+use mikk150\jwt\SelfSignedCookie;
 use mikk150\jwt\User as ServerUser;
 use tests\ClientIdentity;
 use tests\Identity as ServerIdentity;
 use tests\unit\TestCase;
 use yii\base\Security;
+use yii\helpers\ArrayHelper;
 use yii\web\CookieCollection;
 
 class UserTest extends TestCase
@@ -170,8 +172,143 @@ class UserTest extends TestCase
             ]
         ]);
 
-        $this->expectException(Exception::class);
-        $this->expectExceptionMessage('Unable to load and verify the token.');
-        $this->assertEquals('test_id', $user->getId());
+        $this->assertNull($user->getId());
+    }
+
+    public function testLoadingEmptyToken()
+    {
+        $response = new Response([
+            'charset' => 'utf8'
+        ]);
+
+        $user = new ServerUser([
+            'response' => $response,
+            'identityClass' => ServerIdentity::class,
+            'enableAutoLogin' => true,
+            'jwkConfig' => [
+                'kty' => 'oct',
+                'alg' => 'HS256',
+                'k' => Base64UrlSafe::encode('invalidinvalidinvalidinvalidinval'),
+            ],
+            'jwtConfig' => [
+                'alg'  => 'HS256',
+            ],
+            'signatureAlgorithms' => [
+                new HS256()
+            ]
+        ]);
+
+        $identityCookie = new SelfSignedCookie(ArrayHelper::merge($user->identityCookie, [
+            'value' => ''
+        ]));
+
+        $request = $this->construct(Request::class, [
+            [
+                'user' => $user,
+                'enableCsrfCookie' => false,
+            ]
+        ], [
+            'getCookies' => function () use ($identityCookie) {
+                $collection = new CookieCollection();
+                $collection->add($identityCookie);
+                return $collection;
+            }
+        ]);
+
+        $response = new Response([
+            'charset' => 'utf8'
+        ]);
+
+        $this->mockWebApplication([
+            'components' => [
+                'response' => $response,
+                'security' => Security::class,
+                'request' => $request
+            ],
+        ]);
+
+        $user = new User([
+            'identityClass' => ClientIdentity::class,
+            'enableAutoLogin' => true,
+            'jwkConfig' => [
+                'kty' => 'oct',
+                'alg' => 'HS256',
+                'k' => Base64UrlSafe::encode('verysecrettokenverysecrettokenver'),
+            ],
+            'jwtConfig' => [
+                'alg'  => 'HS256',
+            ],
+            'signatureAlgorithms' => [
+                new HS256()
+            ]
+        ]);
+
+        $this->assertNull($user->getId());
+    }
+
+    public function testLoadingNotExistingToken()
+    {
+        $response = new Response([
+            'charset' => 'utf8'
+        ]);
+
+        $user = new ServerUser([
+            'response' => $response,
+            'identityClass' => ServerIdentity::class,
+            'enableAutoLogin' => true,
+            'jwkConfig' => [
+                'kty' => 'oct',
+                'alg' => 'HS256',
+                'k' => Base64UrlSafe::encode('invalidinvalidinvalidinvalidinval'),
+            ],
+            'jwtConfig' => [
+                'alg'  => 'HS256',
+            ],
+            'signatureAlgorithms' => [
+                new HS256()
+            ]
+        ]);
+
+        $response = new Response([
+            'charset' => 'utf8'
+        ]);
+
+        $request = $this->construct(Request::class, [
+            [
+                'user' => $user,
+                'enableCsrfCookie' => false,
+            ]
+        ], [
+            'getCookies' => function () {
+                $collection = new CookieCollection();
+                return $collection;
+            }
+        ]);
+
+        $this->mockWebApplication([
+            'components' => [
+                'response' => $response,
+                'security' => Security::class,
+                'request' => $request
+            ],
+        ]);
+
+        $user = new User([
+            'identityClass' => ClientIdentity::class,
+            'enableAutoLogin' => true,
+            'jwkConfig' => [
+                'kty' => 'oct',
+                'alg' => 'HS256',
+                'k' => Base64UrlSafe::encode('verysecrettokenverysecrettokenver'),
+            ],
+            'jwtConfig' => [
+                'alg'  => 'HS256',
+            ],
+            'signatureAlgorithms' => [
+                new HS256()
+            ]
+        ]);
+
+        $this->assertNull($user->getId());
     }
 }
