@@ -2,7 +2,7 @@
 
 namespace mikk150\jwt;
 
-use yii\web\Cookie;
+use Yii;
 use yii\base\InvalidConfigException;
 use yii\base\Security;
 use yii\di\Instance;
@@ -71,30 +71,38 @@ class Request extends \yii\web\Request
                 if (!is_string($value)) {
                     continue;
                 }
-                if (!in_array($name, $this->selfSignedCookies)) {
-                    $data = $this->getSecurity()->validateData($value, $this->cookieValidationKey);
-                    if ($data === false) {
-                        continue;
-                    }
-                }
-                $data = @unserialize($data);
-                if (is_array($data) && isset($data[0], $data[1]) && $data[0] === $name) {
-                    $cookies[$name] = new Cookie([
-                        'name' => $name,
-                        'value' => $data[1],
-                        'expire' => null,
-                    ]);
-                } else if (in_array($name, $this->selfSignedCookies)) {
-                    $cookies[$name] = new SelfSignedCookie([
+
+                if (in_array($name, $this->selfSignedCookies)) {
+                    $cookies[$name] = Yii::createObject([
+                        'class' => SelfSignedCookie::class,
                         'name' => $name,
                         'value' => $value,
+                        'expire' => null,
+                    ]);
+                    continue;
+                }
+                $data = $this->getSecurity()->validateData($value, $this->cookieValidationKey);
+                if ($data === false) {
+                    continue;
+                }
+                if (defined('PHP_VERSION_ID') && PHP_VERSION_ID >= 70000) {
+                    $data = @unserialize($data, ['allowed_classes' => false]);
+                } else {
+                    $data = @unserialize($data);
+                }
+                if (is_array($data) && isset($data[0], $data[1]) && $data[0] === $name) {
+                    $cookies[$name] = Yii::createObject([
+                        'class' => 'yii\web\Cookie',
+                        'name' => $name,
+                        'value' => $data[1],
                         'expire' => null,
                     ]);
                 }
             }
         } else {
             foreach ($_COOKIE as $name => $value) {
-                $cookies[$name] = new Cookie([
+                $cookies[$name] = Yii::createObject([
+                    'class' => 'yii\web\Cookie',
                     'name' => $name,
                     'value' => $value,
                     'expire' => null,
