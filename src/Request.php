@@ -42,8 +42,8 @@ class Request extends \yii\web\Request
      */
     public function getUser()
     {
-        if (!($this->_user instanceof User)) {
-            $this->_user = Instance::ensure($this->_user, User::class);
+        if (!($this->_user instanceof BaseUser)) {
+            $this->_user = Instance::ensure($this->_user, BaseUser::class);
         }
         return $this->_user;
     }

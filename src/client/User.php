@@ -8,6 +8,7 @@ use Jose\Component\Signature\JWSLoader;
 use Jose\Component\Signature\JWSVerifier;
 use Jose\Component\Signature\Serializer\CompactSerializer;
 use Jose\Component\Signature\Serializer\JWSSerializerManager;
+use mikk150\jwt\BaseUser;
 use mikk150\jwt\Request;
 use mikk150\jwt\Response;
 use yii\base\InvalidConfigException;
@@ -15,20 +16,12 @@ use Yii;
 use yii\di\Instance;
 use yii\helpers\Json;
 
-class User extends \yii\web\User
+class User extends BaseUser
 {
     /**
      * @var string the class name of the [[identity]] object.
      */
     public $identityClass = 'mikk150\jwt\client\Identity';
-
-    public $jwkConfig;
-    public $jwtConfig;
-
-    public $signatureAlgorithms;
-
-    public $idParam = 'uid';
-    public $authTimeoutParam = 'exp';
 
     public function init()
     {
@@ -43,23 +36,6 @@ class User extends \yii\web\User
         }
     }
 
-    private $_request = 'request';
-    public function setRequest($request)
-    {
-        $this->_request = $request;
-    }
-
-    /**
-     * @return Request
-     */
-    public function getRequest()
-    {
-        if (!($this->_request instanceof Request)) {
-            $this->_request = Instance::ensure($this->_request, Request::class);
-        }
-        return $this->_request;
-    }
-
     public function getIdentity($autoRenew = false)
     {
         $value = $this->getRequest()->getCookies()->getValue($this->identityCookie['name']);
@@ -69,29 +45,5 @@ class User extends \yii\web\User
         }
 
         return new $this->identityClass($data);
-    }
-
-    protected function getClaimFromToken(string $token)
-    {
-        $serializerManager = new JWSSerializerManager([
-            new CompactSerializer(),
-        ]);
-        $algorithmManager = new AlgorithmManager($this->signatureAlgorithms);
-
-
-        $jwsVerifier = new JWSVerifier(
-            $algorithmManager
-        );
-
-        $jwk = new JWK($this->jwkConfig);
-
-        $jwsLoader = new JWSLoader(
-            $serializerManager,
-            $jwsVerifier,
-            null
-        );
-
-        $jws = $jwsLoader->loadAndVerifyWithKey($token, $jwk, $signature);
-        return Json::decode($jws->getPayload());
     }
 }

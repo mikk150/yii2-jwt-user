@@ -20,17 +20,8 @@ use yii\web\Cookie;
 /**
 *
 */
-class User extends \yii\web\User
+class User extends BaseUser
 {
-    public $jwkConfig;
-    public $jwtConfig;
-
-    public $signatureAlgorithms = [];
-
-    public $idParam = 'uid';
-    public $authTimeoutParam = 'exp';
-    public $durationClaim = 'dur';
-
     public function init()
     {
         parent::init();
@@ -186,30 +177,6 @@ class User extends \yii\web\User
             ->build();
 
         return $serializer->serialize($jws);
-    }
-
-    protected function getClaimFromToken(string $token)
-    {
-        $serializerManager = new JWSSerializerManager([
-            new CompactSerializer(),
-        ]);
-
-        $algorithmManager = new AlgorithmManager($this->signatureAlgorithms);
-
-        $jwsVerifier = new JWSVerifier(
-            $algorithmManager
-        );
-
-        $jwk = new JWK($this->jwkConfig);
-
-        $jwsLoader = new JWSLoader(
-            $serializerManager,
-            $jwsVerifier,
-            null
-        );
-
-        $jws = $jwsLoader->loadAndVerifyWithKey($token, $jwk, $signature);
-        return Json::decode($jws->getPayload());
     }
 
     /**
